@@ -43,7 +43,7 @@ class _AdminScreenState extends State<AdminScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Admin Dashboard'),
+        title: const Text('Dashboard Guru'),
         backgroundColor: const Color(0xFF2196F3),
         actions: [
           IconButton(
@@ -71,13 +71,13 @@ class _AdminScreenState extends State<AdminScreen> {
                 crossAxisAlignment: CrossAxisAlignment.center,
                 children: [
                   const Icon(
-                    Icons.admin_panel_settings,
+                    Icons.school,
                     size: 120,
                     color: Color(0xFF2196F3),
                   ),
                   const SizedBox(height: 32),
                   const Text(
-                    'Selamat Datang Admin',
+                    'Selamat Datang Guru',
                     textAlign: TextAlign.center,
                     style: TextStyle(
                       fontSize: 28,
