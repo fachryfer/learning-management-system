@@ -6,6 +6,7 @@ import 'add_material_screen.dart';
 import 'view_submissions_admin_screen.dart';
 import 'view_materials_admin_screen.dart';
 import 'manage_assignments_screen.dart';
+import 'manage_users_screen.dart';
 
 class AdminScreen extends StatefulWidget {
   const AdminScreen({super.key});
@@ -122,6 +123,12 @@ class _AdminScreenState extends State<AdminScreen> {
                         'Lihat Materi',
                         Icons.book_outlined,
                         () => Navigator.push(context, MaterialPageRoute(builder: (context) => const ViewMaterialsAdminScreen())),
+                      ),
+                      _buildDashboardCard(
+                        context,
+                        'Kelola Pengguna',
+                        Icons.people_alt_outlined,
+                        () => Navigator.push(context, MaterialPageRoute(builder: (context) => const ManageUsersScreen())),
                       ),
                     ],
                   ),

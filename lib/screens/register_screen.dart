@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import '../models/user_model.dart';
 
 class RegisterScreen extends StatefulWidget {
   const RegisterScreen({super.key});
@@ -18,7 +17,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
   bool _isLoading = false;
   bool _isObscure = true;
   bool _isConfirmObscure = true;
-  String _selectedRole = 'student'; // Default role
 
   @override
   void dispose() {
@@ -34,126 +32,54 @@ class _RegisterScreenState extends State<RegisterScreen> {
         _isLoading = true;
       });
 
-      UserCredential? userCredential;
-      
       try {
-        // 1. Buat user di Firebase Auth
-        userCredential = await FirebaseAuth.instance.createUserWithEmailAndPassword(
+        UserCredential userCredential = await FirebaseAuth.instance.createUserWithEmailAndPassword(
           email: _emailController.text.trim(),
           password: _passwordController.text.trim(),
         );
 
-        if (userCredential.user == null) {
-          throw FirebaseAuthException(
-            code: 'auth/user-not-created',
-            message: 'User credential is null after creation',
-          );
-        }
-
-        // 2. Buat data user untuk Firestore
-        final userData = {
-          'uid': userCredential.user!.uid,
+        // Simpan data pengguna ke Firestore
+        await FirebaseFirestore.instance.collection('users').doc(userCredential.user!.uid).set({
           'email': _emailController.text.trim(),
-          'role': _selectedRole,
+          'role': 'student', // Set role default menjadi student
           'createdAt': FieldValue.serverTimestamp(),
-        };
-
-        print('Data yang akan disimpan ke Firestore: ${userData}');
-
-        // 3. Simpan ke Firestore
-        await FirebaseFirestore.instance
-            .collection('users')
-            .doc(userCredential.user!.uid)
-            .set(userData);
-
-        print('Data seharusnya sudah disimpan ke Firestore.');
-
-        // 4. Verifikasi data tersimpan
-        final docSnapshot = await FirebaseFirestore.instance
-            .collection('users')
-            .doc(userCredential.user!.uid)
-            .get();
-
-        if (!docSnapshot.exists) {
-           // Hapus user dari Auth jika data tidak tersimpan di Firestore
-          await userCredential.user!.delete();
-          throw Exception('Verifikasi Firestore gagal: Data user tidak ditemukan setelah disimpan.');
-        }
-
-        print('Verifikasi Firestore berhasil. Data ditemukan: ${docSnapshot.data()}');
-
-        // 5. Logout dan kembali ke login
-        await FirebaseAuth.instance.signOut();
-        print('Logout berhasil.');
+        });
 
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
-              content: Text('Registrasi berhasil! Silakan login.'),
+              content: Text('Registrasi Berhasil!'),
               backgroundColor: Colors.green,
             ),
           );
+          // Navigasi ke halaman login setelah registrasi berhasil
           Navigator.pushReplacementNamed(context, '/login');
         }
-
       } on FirebaseAuthException catch (e) {
-        print('FirebaseAuthException saat registrasi: ${e.code} - ${e.message}');
-        
-        // Jika user sudah dibuat di Auth tapi gagal di Firestore/verifikasi, hapus user
-        if (userCredential?.user != null) {
-          try {
-            print('Menghapus user dari Auth karena gagal di tahap selanjutnya...');
-            await userCredential!.user!.delete();
-            print('User berhasil dihapus dari Auth.');
-          } catch (deleteError) {
-            print('Error saat menghapus user dari Auth: $deleteError');
-          }
-        }
-
-        String message = 'Terjadi kesalahan autentikasi.';
+        String message = 'Terjadi error saat registrasi.';
         if (e.code == 'weak-password') {
           message = 'Password terlalu lemah.';
         } else if (e.code == 'email-already-in-use') {
-          message = 'Email sudah terdaftar.';
-        } else if (e.code == 'invalid-email') {
-          message = 'Format email tidak valid.';
-        } else if (e.message != null) {
-           message = 'Autentikasi gagal: ${e.message}';
+          message = 'Akun sudah ada untuk email tersebut.';
         }
-
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(message),
-            backgroundColor: Colors.red[700],
-          ),
-        );
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(message),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
       } catch (e) {
-        print('Error umum saat registrasi: ${e.toString()}');
-        print('Tipe error: ${e.runtimeType}');
-        // Jika user sudah dibuat di Auth tapi gagal di Firestore/verifikasi, hapus user
-        if (userCredential?.user != null) {
-          try {
-             print('Menghapus user dari Auth karena error umum...');
-            await userCredential!.user!.delete();
-            print('User berhasil dihapus dari Auth.');
-          } catch (deleteError) {
-            print('Error saat menghapus user dari Auth (dari error umum): $deleteError');
-          }
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Terjadi error tak terduga: ${e.toString()}'),
+              backgroundColor: Colors.red,
+            ),
+          );
         }
-
-        String message = 'Terjadi kesalahan saat registrasi.';
-         if (e.toString().contains('List') && e.toString().contains('Object')) {
-           message = 'Terjadi kesalahan format data saat registrasi. Cek log untuk detail.';
-         } else {
-           message = 'Terjadi kesalahan: ${e.toString()}';
-         }
-
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(message),
-            backgroundColor: Colors.red[700],
-          ),
-        );
+        print('Error registrasi: ${e.toString()}'); // Cetak error lengkap ke konsol
       } finally {
         if (mounted) {
           setState(() {
@@ -287,29 +213,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
                           return 'Password tidak cocok';
                         }
                         return null;
-                      },
-                    ),
-                    const SizedBox(height: 16),
-                    DropdownButtonFormField<String>(
-                      value: _selectedRole,
-                      decoration: const InputDecoration(
-                        labelText: 'Role',
-                        prefixIcon: Icon(Icons.person, color: Color(0xFF2196F3)),
-                      ),
-                      items: const [
-                        DropdownMenuItem(
-                          value: 'student',
-                          child: Text('Siswa'),
-                        ),
-                        DropdownMenuItem(
-                          value: 'admin',
-                          child: Text('Admin'),
-                        ),
-                      ],
-                      onChanged: (value) {
-                        setState(() {
-                          _selectedRole = value!;
-                        });
                       },
                     ),
                     const SizedBox(height: 24),
